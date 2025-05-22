@@ -1,55 +1,60 @@
-import re
-from collections import defaultdict
+import os
 
-# Preference order for blobs (highest priority first)
+# Define priority order (lower index = higher priority)
 PREFERENCE = ['product/', 'vendor/', 'system_ext/', 'system/']
 
-def get_priority(blob_path):
+def get_priority(path):
     for i, prefix in enumerate(PREFERENCE):
-        if blob_path.startswith(prefix):
+        if path.startswith(prefix):
             return i
-    return len(PREFERENCE)  # lowest priority if no match
-
-def parse_proprietary_files(file_path):
-    blobs_map = defaultdict(list)  # key: filename, value: list of full paths
-
-    with open(file_path, 'r') as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            
-            # Remove optional colon with destination (e.g., src:path:dest)
-            parts = line.split(':')
-            blob_path = parts[0]
-
-            # Normalize blob path to relative
-            blob_path = blob_path.lstrip('/') 
-
-            filename = blob_path.split('/')[-1]
-            blobs_map[filename].append(blob_path)
-
-    return blobs_map
-
-def select_preferred_blobs(blobs_map):
-    preferred_blobs = {}
-
-    for filename, paths in blobs_map.items():
-        # Sort paths by priority
-        paths_sorted = sorted(paths, key=get_priority)
-        # Pick the path with highest priority
-        preferred_blobs[filename] = paths_sorted[0]
-
-    return preferred_blobs
+    return len(PREFERENCE)
 
 def main():
-    proprietary_files_path = 'device/xiaomi/blossom/proprietary-files.txt'
-    blobs_map = parse_proprietary_files(proprietary_files_path)
-    preferred_blobs = select_preferred_blobs(blobs_map)
+    input_file = 'proprietary-files.txt'
+    if not os.path.exists(input_file):
+        print("File not found.")
+        return
 
-    # Print or write preferred blobs
-    for filename, path in preferred_blobs.items():
-        print(path)
+    lines = []
+    blob_map = {}
+
+    with open(input_file, 'r') as f:
+        for i, line in enumerate(f):
+            original_line = line.rstrip('\n')
+            stripped = original_line.strip()
+            if not stripped or stripped.startswith('#'):
+                lines.append((i, original_line, None))  # (index, line, key=None)
+                continue
+
+            src = stripped.split(':')[0].lstrip('/')
+            name = os.path.basename(src)
+
+            # Store line data and reference
+            if name not in blob_map:
+                blob_map[name] = []
+            blob_map[name].append((i, original_line, src))
+
+            lines.append((i, original_line, name))
+
+    # Determine which paths to keep
+    keep_index_set = set()
+    for name, entries in blob_map.items():
+        if len(entries) == 1:
+            keep_index_set.add(entries[0][0])
+        else:
+            # Sort by priority
+            best = sorted(entries, key=lambda x: get_priority(x[2]))[0]
+            keep_index_set.add(best[0])
+
+    # Rewrite the file with excess lines commented
+    with open(input_file, 'w') as f:
+        for i, line, key in lines:
+            if key is None or i in keep_index_set:
+                f.write(line + '\n')
+            else:
+                f.write(f'# {line}\n')
+
+    print("✅ Conflicts resolved and extra lines commented out.")
 
 if __name__ == "__main__":
     main()
