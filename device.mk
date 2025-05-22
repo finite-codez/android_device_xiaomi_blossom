@@ -502,6 +502,27 @@ PRODUCT_PROPERTY_OVERRIDES += \
 PRODUCT_COPY_FILES += \
     $(call find-copy-subdir-files,*,$(LOCAL_PATH)/seccomp/,$(TARGET_COPY_OUT_VENDOR)/etc/seccomp_policy)
 
+# Skip missing prebuilt modules (safe for bring-ups with incomplete vendor blobs)
+PRODUCT_PACKAGING_IGNORE_MISSING := true
+
+# Avoid duplicate .so installation errors during build
+OVERRIDE_VENDOR_MODULES := \
+    vendor.mediatek.hardware.audio@6.0 \
+    vendor.mediatek.hardware.audio@7.0 \
+    vendor.mediatek.hardware.audio@7.1 \
+    vendor.mediatek.hardware.dmc@1.0 \
+    vendor.mediatek.hardware.dmc@1.1 \
+    vendor.mediatek.hardware.lbs@2.0 \
+    vendor.mediatek.hardware.mcusys@1.0 \
+    vendor.mediatek.hardware.mcusys@1.1 \
+    vendor.mediatek.hardware.mdp@3.0 \
+    vendor.mediatek.hardware.memtrack@1.0 \
+    vendor.mediatek.hardware.memtrack@1.1 \
+    vendor.mediatek.hardware.power@2.0 \
+    vendor.mediatek.hardware.power@2.1 \
+    vendor.mediatek.hardware.sysinfo@1.0 \
+    vendor.mediatek.hardware.sysinfo@1.1
+
 # Soong namespaces
 PRODUCT_SOONG_NAMESPACES += \
     hardware/google/interfaces \
