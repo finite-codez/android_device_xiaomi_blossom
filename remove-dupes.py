@@ -1,41 +1,55 @@
-import os
+import re
 from collections import defaultdict
 
-FILE_PATH = "proprietary-files.txt"
+# Preference order for blobs (highest priority first)
+PREFERENCE = ['product/', 'vendor/', 'system_ext/', 'system/']
 
-# Load all blob entries
-with open(FILE_PATH, "r", encoding="utf-8") as f:
-    lines = f.readlines()
+def get_priority(blob_path):
+    for i, prefix in enumerate(PREFERENCE):
+        if blob_path.startswith(prefix):
+            return i
+    return len(PREFERENCE)  # lowest priority if no match
 
-so_map = defaultdict(list)
+def parse_proprietary_files(file_path):
+    blobs_map = defaultdict(list)  # key: filename, value: list of full paths
 
-# Collect .so entries by basename
-for idx, line in enumerate(lines):
-    line = line.strip()
-    if not line or line.startswith("#"):
-        continue
-    path = line.split(":")[0]
-    if path.endswith(".so"):
-        so_map[os.path.basename(path)].append((idx, line))
+    with open(file_path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            
+            # Remove optional colon with destination (e.g., src:path:dest)
+            parts = line.split(':')
+            blob_path = parts[0]
 
-# Find conflicts
-conflicts = {k: v for k, v in so_map.items() if len(v) > 1}
+            # Normalize blob path to relative
+            blob_path = blob_path.lstrip('/') 
 
-if not conflicts:
-    print("✅ No conflicting .so blobs found.")
-else:
-    print("⚠️ Found conflicting .so blobs:")
-    for blob, entries in conflicts.items():
-        print(f"\n🔁 {blob} appears in multiple locations:")
-        for idx, entry in entries:
-            print(f"  - Line {idx+1}: {entry}")
+            filename = blob_path.split('/')[-1]
+            blobs_map[filename].append(blob_path)
 
-    # Optional: auto-comment all but the first
-    confirm = input("\nComment out duplicates? [y/N]: ").lower()
-    if confirm == "y":
-        for blob, entries in conflicts.items():
-            for idx, line in entries[1:]:
-                lines[idx] = f"# {line}  # auto-disabled due to conflict\n"
-        with open(FILE_PATH, "w", encoding="utf-8") as f:
-            f.writelines(lines)
-        print("✅ Conflicting entries commented out.")
+    return blobs_map
+
+def select_preferred_blobs(blobs_map):
+    preferred_blobs = {}
+
+    for filename, paths in blobs_map.items():
+        # Sort paths by priority
+        paths_sorted = sorted(paths, key=get_priority)
+        # Pick the path with highest priority
+        preferred_blobs[filename] = paths_sorted[0]
+
+    return preferred_blobs
+
+def main():
+    proprietary_files_path = 'device/xiaomi/blossom/proprietary-files.txt'
+    blobs_map = parse_proprietary_files(proprietary_files_path)
+    preferred_blobs = select_preferred_blobs(blobs_map)
+
+    # Print or write preferred blobs
+    for filename, path in preferred_blobs.items():
+        print(path)
+
+if __name__ == "__main__":
+    main()
