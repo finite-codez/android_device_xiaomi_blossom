@@ -144,7 +144,7 @@ lib/libsource.so
 # lib/libvcodec_capenc.so
 lib/libvt_avsync.so
 lib64/libmtk_vt_wrapper.so
-lib64/libmtkavenhancements.so
+# lib64/libmtkavenhancements.so nuke this problematic guy
 lib64/libvcodec_cap.so
 lib64/libvcodec_capenc.so
 priv-app/ImsService/ImsService.apk
